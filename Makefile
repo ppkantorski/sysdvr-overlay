@@ -38,13 +38,13 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
 APP_TITLE	:=	SysDVR Overlay
-APP_VERSION :=	1.0.11
+APP_VERSION :=	1.0.11+
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source libs/libultrahand/libultra/source
 DATA		:=	data
-INCLUDES	:=	include libs/libtesla/include
+INCLUDES	:=	include libs/libultrahand/libultra/include libs/libultrahand/libtesla/include
 
 NO_ICON		:=  1
 
@@ -53,10 +53,19 @@ NO_ICON		:=  1
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
-CFLAGS	:=	-g -Wall -O2 -ffunction-sections \
+CFLAGS	:=	-g -Wall -Os -ffunction-sections \
 			$(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__
+
+# Enable appearance overriding
+UI_OVERRIDE_PATH := /config/sysdvr/
+CFLAGS += -DUI_OVERRIDE_PATH="\"$(UI_OVERRIDE_PATH)\""
+
+# Disable fstream
+NO_FSTREAM_DIRECTIVE := 1
+CFLAGS += -DNO_FSTREAM_DIRECTIVE=$(NO_FSTREAM_DIRECTIVE)
+
 
 CXXFLAGS	:= $(CFLAGS) -fno-exceptions -std=c++20 -DAPP_TITLE="\"$(APP_TITLE)\"" -DAPP_VERSION="\"v$(APP_VERSION)\""
 
