@@ -15,7 +15,7 @@ jobs:
     container: devkitpro/devkita64:latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Run build script
@@ -24,4 +24,5 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: SysDVR-Overlay-dev
-        path: release/*/.overlays/*.ovl
+        path: release/switch/.overlays/*.ovl
+        include-hidden-files: true
