@@ -1,9 +1,10 @@
 #define TESLA_INIT_IMPL // If you have more than one file using the tesla header, only define this in the main one
+#include <exception_wrap.hpp>
 #include <tesla.hpp>    // The Tesla Header
 
 //This is a version for the SysDVR Config app protocol, it's not shown anywhere and not related to the major version
 #define SYSDVR_VERSION_MIN 5
-#define SYSDVR_VERSION_MAX 16
+#define SYSDVR_VERSION_MAX 18
 #define TYPE_MODE_USB 1
 #define TYPE_MODE_TCP 2
 #define TYPE_MODE_RTSP 4
@@ -26,6 +27,7 @@ private:
     u32 targetMode = 0;
     int waitFrames = -1;
     std::string modeString;
+    std::string versionString;
     char ipString[20];
     u32 statusColor = 0;
 public:
@@ -51,9 +53,10 @@ public:
         }
         
         sysDvrGetVersion(&version);
+        versionString = std::to_string(version);
 
         if(version>SYSDVR_VERSION_MAX ||version<SYSDVR_VERSION_MIN) {
-            list->addItem(getErrorDrawer("Unkown SysDVR Config API: v"+ std::to_string(version) 
+            list->addItem(getErrorDrawer("Unkown SysDVR Config API: v"+ versionString
                 +"\nOnly Config API v"+std::to_string(SYSDVR_VERSION_MIN)+" to "+std::to_string(SYSDVR_VERSION_MAX)+" is supported"), getErrorDrawerSize());
             frame->setContent(list);
             return frame;
@@ -66,16 +69,19 @@ public:
         updateIP(newIp);
 
         auto infodrawer = new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-            renderer->drawString("Info", false, x + 3, y + 16, 20, renderer->a(0xFFFF));
-            renderer->drawString("Mode:", false, x + 3, y + 40, 16, renderer->a(0xFFFF));
-            renderer->drawString("IP-Address:", false, x + 3, y + 60, 16, renderer->a(0xFFFF));
+            renderer->drawString("Info", false, x + 3, y + 16, 20, (0xFFFF));
+            renderer->drawString("Mode:", false, x + 3, y + 40, 16, (0xFFFF));
+            renderer->drawString("IP-Address:", false, x + 3, y + 60, 16, (0xFFFF));
+            renderer->drawString("IPC-Version:", false, x + 3, y + 80, 16, (0xFFFF));
             
             renderer->drawCircle(x + 116, y + 35, 5, true, renderer->a(statusColor));
-            renderer->drawString(modeString.c_str(), false, x + 130, y + 40, 16, renderer->a(0xFFFF));
+            renderer->drawString(modeString.c_str(), false, x + 130, y + 40, 16, (0xFFFF));
 
-            renderer->drawString(ipString, false, x + 110, y + 60, 16, renderer->a(0xFFFF));
+            renderer->drawString(ipString, false, x + 110, y + 60, 16, (0xFFFF));
+
+            renderer->drawString(versionString.c_str(), false, x + 110, y + 80, 16, (0xFFFF));
         });
-        list->addItem(infodrawer, 70);
+        list->addItem(infodrawer, 85);
 
         // List Items
         list->addItem(new tsl::elm::CategoryHeader("Change Mode"));
@@ -105,7 +111,7 @@ public:
 
     tsl::elm::CustomDrawer* getErrorDrawer(std::string message1){
         return new tsl::elm::CustomDrawer([message1](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-            renderer->drawString(message1.c_str(), false, x + 3, y + 15, 20, renderer->a(0xF22F));
+            renderer->drawString(message1.c_str(), false, x + 3, y + 15, 20, (0xF22F));
         });
     }
 
