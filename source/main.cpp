@@ -26,6 +26,7 @@ private:
     u32 version, mode = 0, ipAddress = 0;
     u32 targetMode = 0;
     int waitFrames = -1;
+    tsl::elm::ListItem* lastModeItem = nullptr;
     std::string modeString;
     std::string versionString;
     char ipString[20];
@@ -42,7 +43,7 @@ public:
         // A OverlayFrame is the base element every overlay consists of. This will draw the default Title and Subtitle.
         // If you need more information in the header or want to change it's look, use a HeaderOverlayFrame.
         auto frame = new tsl::elm::OverlayFrame(APP_TITLE, APP_VERSION);
-
+        frame->m_showWidget=true;
         // A list that can contain sub elements and handles scrolling
         auto list = new tsl::elm::List();
 
@@ -68,39 +69,74 @@ public:
         updateMode(newMode);
         updateIP(newIp);
 
-        auto infodrawer = new tsl::elm::CustomDrawer([this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-            renderer->drawString("Info", false, x + 3, y + 16, 20, (0xFFFF));
-            renderer->drawString("Mode:", false, x + 3, y + 40, 16, (0xFFFF));
-            renderer->drawString("IP-Address:", false, x + 3, y + 60, 16, (0xFFFF));
-            renderer->drawString("IPC-Version:", false, x + 3, y + 80, 16, (0xFFFF));
-            
-            renderer->drawCircle(x + 116, y + 35, 5, true, renderer->a(statusColor));
-            renderer->drawString(modeString.c_str(), false, x + 130, y + 40, 16, (0xFFFF));
+        list->addItem(new tsl::elm::CategoryHeader("Info"));
 
-            renderer->drawString(ipString, false, x + 110, y + 60, 16, (0xFFFF));
+        // Match ultrahand table layout:
+        //   startGap=20, lineHeight=16, newlineGap=4  → row spacing of 20px
+        //   columnOffset=164                          → right-column x position
+        //   baseX=12                                  → left-column x offset
+        //   itemHeight = 16*3 + 4*2 + 9 = 65         → passed to addItem
+        //   TableDrawer draws the rounded-rect tableBGColor background automatically
+        auto *infodrawer = new tsl::elm::TableDrawer(
+            [this](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
+                constexpr s32 startGap     = 20;
+                constexpr s32 lineHeight   = 16;
+                constexpr s32 newlineGap   = 4;
+                constexpr s32 columnOffset = 194+10;
+                constexpr s32 baseX        = 12;
 
-            renderer->drawString(versionString.c_str(), false, x + 110, y + 80, 16, (0xFFFF));
-        });
-        list->addItem(infodrawer, 85);
+                const s32 row0 = y + startGap;
+                const s32 row1 = row0 + lineHeight + newlineGap;
+                const s32 row2 = row1 + lineHeight + newlineGap;
+
+                // Left column — section labels
+                renderer->drawString("Mode",        false, x + baseX, row0, lineHeight, tsl::sectionTextColor);
+                renderer->drawString("IP-Address",  false, x + baseX, row1, lineHeight, tsl::sectionTextColor);
+                renderer->drawString("IPC-Version", false, x + baseX, row2, lineHeight, tsl::sectionTextColor);
+
+                // Right column — info values
+                // Status dot at the column start; mode text 14px to the right (same gap as before)
+                renderer->drawCircle(x + columnOffset + 6, row0 - 6, 5, true, renderer->a(statusColor));
+                renderer->drawString(modeString,    false, x + columnOffset + 14 + 6, row0, lineHeight, tsl::infoTextColor);
+                renderer->drawString(ipString,      false, x + columnOffset, row1, lineHeight, tsl::infoTextColor);
+                renderer->drawString(versionString, false, x + columnOffset, row2, lineHeight, tsl::infoTextColor);
+            },
+            false,  // hideTableBackground — draw the rounded-rect background
+            9       // endGap (matches drawTable default)
+        );
+        list->addItem(infodrawer, 65);  // 16*3 + 4*2 + 9
 
         // List Items
         list->addItem(new tsl::elm::CategoryHeader("Change Mode"));
 
         auto *offItem = new tsl::elm::ListItem("OFF");
-        offItem->setClickListener(getModeLambda(TYPE_MODE_NULL));
+        offItem->setClickListener(getModeLambda(TYPE_MODE_NULL, offItem));
         list->addItem(offItem);
 
         auto *usbModeItem = new tsl::elm::ListItem("USB");
-        usbModeItem->setClickListener(getModeLambda(TYPE_MODE_USB));
+        usbModeItem->setClickListener(getModeLambda(TYPE_MODE_USB, usbModeItem));
         list->addItem(usbModeItem);
 
         auto *tcpModeItem = new tsl::elm::ListItem("TCP");
-        tcpModeItem->setClickListener(getModeLambda(TYPE_MODE_TCP));
+        tcpModeItem->setClickListener(getModeLambda(TYPE_MODE_TCP, tcpModeItem));
         list->addItem(tcpModeItem);
 
         auto *rtspModeItem = new tsl::elm::ListItem("RTSP");
-        rtspModeItem->setClickListener(getModeLambda(TYPE_MODE_RTSP));
+        rtspModeItem->setClickListener(getModeLambda(TYPE_MODE_RTSP, rtspModeItem));
         list->addItem(rtspModeItem);
+
+        // Set initial checkmark on whichever mode is currently active
+        tsl::elm::ListItem* modeItems[]  = { offItem, usbModeItem, tcpModeItem, rtspModeItem };
+        u32                  modeCodes[] = { TYPE_MODE_NULL, TYPE_MODE_USB, TYPE_MODE_TCP, TYPE_MODE_RTSP };
+        for (int i = 0; i < 4; i++) {
+            if (mode == modeCodes[i]) {
+                modeItems[i]->setValue(ult::CHECKMARK_SYMBOL);
+                lastModeItem = modeItems[i];
+                break;
+            }
+        }
+
+        list->jumpToItem("", ult::CHECKMARK_SYMBOL, true);
 
         // Add the list to the frame for it to be drawn
         frame->setContent(list);
@@ -111,7 +147,7 @@ public:
 
     tsl::elm::CustomDrawer* getErrorDrawer(std::string message1){
         return new tsl::elm::CustomDrawer([message1](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-            renderer->drawString(message1.c_str(), false, x + 3, y + 15, 20, (0xF22F));
+            renderer->drawString(message1, false, x + 3, y + 15, 20, (0xF22F));
         });
     }
 
@@ -119,9 +155,12 @@ public:
         return 50;
     }
 
-    std::function<bool(u64 keys)> getModeLambda(u32 mode){
-        return [this,mode](u64 keys) {
+    std::function<bool(u64 keys)> getModeLambda(u32 mode, tsl::elm::ListItem* item){
+        return [this, mode, item](u64 keys) {
             if (keys & HidNpadButton_A) {
+                if (lastModeItem) lastModeItem->setValue("");
+                item->setValue(ult::CHECKMARK_SYMBOL);
+                lastModeItem = item;
                 sysDVRRequestModeChange(mode);
                 return true;
             }
@@ -234,8 +273,6 @@ public:
 
     void sysDVRRequestModeChange(u32 command){
         targetMode = command;
-        updateMode(TYPE_MODE_SWITCHING);
-        // Make sure the mode switching is drawn
         waitFrames = 2;
     }
 
