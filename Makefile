@@ -37,7 +37,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #   of a homebrew executable (.nro). This is intended to be used for sysmodules.
 #   NACP building is skipped as well.
 #---------------------------------------------------------------------------------
-APP_TITLE	:=	SysDVR Overlay
+APP_TITLE	:=	SysDVR
 APP_VERSION :=	1.0.15+
 
 TARGET		:=	$(notdir $(CURDIR))
