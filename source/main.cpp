@@ -147,7 +147,7 @@ public:
 
     tsl::elm::CustomDrawer* getErrorDrawer(std::string message1){
         return new tsl::elm::CustomDrawer([message1](tsl::gfx::Renderer *renderer, s32 x, s32 y, s32 w, s32 h) {
-            renderer->drawString(message1, false, x + 3, y + 15, 20, (0xF22F));
+            renderer->drawString(message1, false, x + 7, y + 15, 20, (0xF22F));
         });
     }
 
